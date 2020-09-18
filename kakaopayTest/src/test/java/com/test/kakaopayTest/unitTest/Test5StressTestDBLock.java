@@ -20,7 +20,7 @@ import com.test.kakaopayTest.service.DistributeService;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-public class Test5StressTestMultiThread {
+public class Test5StressTestDBLock {
 	
 	@Autowired DistributeService distService;
 	@Autowired DistributeRepository distRepo;

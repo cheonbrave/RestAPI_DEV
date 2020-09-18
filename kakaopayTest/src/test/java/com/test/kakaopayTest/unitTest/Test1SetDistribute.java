@@ -55,7 +55,6 @@ public class Test1SetDistribute {
     @Test
 	@DisplayName("뿌리기신청 - X-ROOM-ID 공백시 실패")
 	void 뿌리기신청1_1() throws Exception {
-    	
 		SetDistributeData reqData = new SetDistributeData();
 		reqData.setAmount(10000);
 		reqData.setCount(3);
