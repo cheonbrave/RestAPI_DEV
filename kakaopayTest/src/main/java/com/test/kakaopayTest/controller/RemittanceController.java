@@ -88,8 +88,18 @@ public class RemittanceController {
 			return new ResponseEntity<CommonResponse>(cr, HttpStatus.OK);
 		}
 		
-		cr = distService.getDistributedMoney(roomId, userId, token);
-
+		try {
+			cr = distService.getDistributedMoney(roomId, userId, token);
+		}catch (Exception e) {
+			
+			/* JPA 낙관적 락 발생으로 인해 분배금액 할당(update)실패시 1회 재시도 */
+			try {
+				cr = distService.getDistributedMoney(roomId, userId, token);
+			}catch (Exception e2) {
+				cr.setResult("N");
+				cr.setMsg(Returns.ERR_FAILED, Returns.ERR_FAILED_MSG);
+			}
+		}
 		return new ResponseEntity<CommonResponse>(cr, HttpStatus.OK);
 	}
 

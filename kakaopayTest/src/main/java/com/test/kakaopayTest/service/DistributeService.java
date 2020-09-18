@@ -3,6 +3,7 @@ package com.test.kakaopayTest.service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,9 @@ public class DistributeService {
 	 * 
 	 * @param strList
 	 */
-	public void makeCharList(ArrayList<String> strList) {
+	public ArrayList<String> makeCharList() {
+		ArrayList<String> strList = new ArrayList<>();
+		
 		for (int i = 48; i < 123; i++) {
 
 			/* 48 ~ 122 까지 증가하면서 특수문자 영역을 제외하고 리스트 생성 (숫자, 알파벳 소문자, 알파벳 대문자) */
@@ -48,44 +51,21 @@ public class DistributeService {
 			strList.add(String.valueOf((char) i));
 		}
 		
-		return;
+		return strList;
 	}
-
+	
 	/**
-	 * 토큰발행 및 뿌릴 금액을 인원수에 맞게 분배하여 저장
-	 * 
-	 * @param amount
-	 * @param count
-	 * @return
+	 * token 생성
+	 * @param token
+	 * @param strList
+	 * @param roomId
 	 */
-	public String setDistribute(String roomId, int masterUserId, SetDistributeData reqData) {
-
-		int count = reqData.getCount();
-		int maxAmount;
-		int remainCount;
+	public String makeToken(ArrayList<String> strList, String roomId) {
 		
-		long amount = reqData.getAmount();
-		long distAmount = 0L;
-		long loopCnt = 0L;
-
+		int loopCnt = 0;
 		String token = "";
-
 		Distribute di = null;
-		DistributeState dsi = null;
 		
-		ArrayList<DistributeState> amtList = new ArrayList<>();
-		ArrayList<String> strList = new ArrayList<>();		
-		
-		/* 금액이 인원수보다 적을경우 최소 1원을 보장할 수 없으므로 토큰을 발행하지 않는다 */
-		if(amount < count) {
-			token = "";
-			return token;
-		}
-		
-		/* 랜덤문자열 생성을 위한 캐릭터 리스트 생성 */
-		this.makeCharList(strList);
-
-		/* token 생성 */
 		while (true) {
 			/* 토큰 생성 문자열 3개, 예측불가능한 랜덤 조합 조합 범위 : 아스키코드 33(!) ~ 126(~) */
 			for (int i = 0; i < 3; i++) {
@@ -100,7 +80,7 @@ public class DistributeService {
 				if (loopCnt > 10000) {
 					// while loop는 10000번으로 제한
 					token = "";
-					return token;
+					break;
 				} else {
 					loopCnt++;
 					continue;
@@ -109,6 +89,87 @@ public class DistributeService {
 				break;
 			}
 		}
+		return token;
+	}
+
+	/**
+	 * 분배금액 할당
+	 * @param count
+	 * @param amount
+	 * @param roomId
+	 * @param token
+	 * @return
+	 */
+	public int distMoney(int count, long amount, String roomId, String token) {
+		int remainCount;
+		long maxAmount;
+		long distAmount;
+		
+		DistributeState dsi = null;
+		ArrayList<DistributeState> amtList = new ArrayList<>();
+		
+		remainCount = count;
+		for (int i = 0; i < count; i++) {	
+			
+			/* 0원을 받는 사람이 없도록, 최소 1원을 보장 */
+			maxAmount = amount - remainCount;
+			remainCount--;
+			             
+			if (i == count - 1){
+				/* 마지막 사람에게는 남은 잔액을 모두 할당 */
+				distAmount = amount;
+			} else {
+				/* maxAmount의 금액 범위내에서 랜덤하게 분배금액 산정 */
+				distAmount = (long) (Math.random() * maxAmount) + 1;
+				amount -= distAmount;
+			}
+			
+			dsi = new DistributeState();
+			dsi.setRoomId(roomId);
+			dsi.setToken(token);
+			dsi.setAmount(distAmount);
+			dsi.setUserId(-1);
+			amtList.add(dsi);
+			
+		}
+		
+		/* 상대적으로 높은 금액이 초반에 몰리는 경향이 있으므로 셔플을 수행하여 고르게 분포를 유도 */
+		Collections.shuffle(amtList);
+
+		/* 금액 분배내역 DB 저장 */
+		amtList = (ArrayList<DistributeState>) distStateRepo.saveAll(amtList);
+		
+		return amtList.size();
+	}
+	/**
+	 * 토큰발행 및 뿌릴 금액을 인원수에 맞게 분배하여 저장
+	 * 
+	 * @param amount
+	 * @param count
+	 * @return
+	 */
+	public String setDistribute(String roomId, int masterUserId, SetDistributeData reqData) {
+
+		int count = reqData.getCount();
+		long amount = reqData.getAmount();
+		String token = "";
+
+		Distribute di = null;
+		
+		
+		ArrayList<String> strList = new ArrayList<>();		
+		
+		/* 금액이 인원수보다 적을경우 최소 1원을 보장할 수 없으므로 토큰을 발행하지 않는다 */
+		if(amount < count) {
+			token = "";
+			return token;
+		}
+		
+		/* 랜덤문자열 생성을 위한 캐릭터 리스트 생성 */
+		strList = this.makeCharList();
+		
+		/* token 생성 */
+		token = this.makeToken(strList, roomId);
 		
 		/* 뿌리기정보 저장 */
 		di = new Distribute();
@@ -120,40 +181,12 @@ public class DistributeService {
 		di.setCreateDate(LocalDateTime.now());
 		di = distRepo.save(di);
 		
-		/* 분배인원수만큼 금액 할당 */
-		if (!"".equals(token) && di != null) {
+		if (token.length() == 3 && di != null) {
 			
-			remainCount = count;
-
-			for (int i = 0; i < count; i++) {	
+			/* 분배인원수만큼 금액 할당 */
+			if(this.distMoney(count, amount, roomId, token) <= 0) {
 				
-				/* 0원을 받는 사람이 없도록, 최소 1원을 보장 */
-				maxAmount = (int)amount - remainCount;
-				             
-				if (i == count - 1){
-					/* 마지막 사람에게는 남은 잔액을 모두 할당 */
-					distAmount = amount;
-				} else {
-					/* maxAmount의 금액 범위내에서 랜덤하게 분배금액 산정 */
-					distAmount = (long) (Math.random() * maxAmount) + 1;
-					amount -= distAmount;
-				}
-				
-				dsi = new DistributeState();
-				dsi.setRoomId(roomId);
-				dsi.setToken(token);
-				dsi.setAmount(distAmount);
-				dsi.setUserId(-1);
-				amtList.add(dsi);
-				
-				remainCount --;
-			}
-
-			/* 금액 분배내역 DB 저장 */
-			amtList = (ArrayList<DistributeState>) distStateRepo.saveAll(amtList);
-
-			if (amtList.size() == 0) {
-				/* 분배내역 DB저장 실패시 token 발행 방지 */
+				/* 금액할당 정보를 DB에 정상적으로 저장하지 못했을 경우 실패로 간주하여 토큰을 발행하지 않음 */
 				token = "";
 			}
 		}
@@ -213,7 +246,7 @@ public class DistributeService {
 	 * @param token
 	 * @return
 	 */
-	public CommonResponse getDistributedMoney(String roomId, int userId, String token) {
+	public CommonResponse getDistributedMoney(String roomId, int userId, String token) throws Exception {
 		long amount = -1L;
 		List<DistributeState> dsiList = null;
 		DistributeState dsi = null;

@@ -1,13 +1,14 @@
 package com.test.kakaopayTest.domain;
 
 import javax.persistence.Column;
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Index;
-import javax.persistence.ManyToOne;
 import javax.persistence.Table;
+import javax.persistence.Version;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -32,5 +33,9 @@ public class DistributeState {
 
 	@Column(name = "user_id", nullable = false, columnDefinition = "integer default -1")
 	private int userId;
+	
+	@Version
+	@Column(name = "VERSION")
+	private int version;
 
 }

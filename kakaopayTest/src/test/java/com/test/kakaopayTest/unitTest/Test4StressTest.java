@@ -2,15 +2,13 @@ package com.test.kakaopayTest.unitTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.test.kakaopayTest.domain.CommonResponse;
 import com.test.kakaopayTest.domain.SetDistributeData;
 import com.test.kakaopayTest.repository.DistributeRepository;
@@ -19,27 +17,21 @@ import com.test.kakaopayTest.service.DistributeService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-//@Transactional
+@Transactional
 public class Test4StressTest {
-	static final String ROOM_ID = "X-ROOM-ID";
-	static final String USER_ID = "X-USER-ID";
 	
 	@Autowired DistributeService distService;
 	@Autowired DistributeRepository distRepo;
 	@Autowired DistributeStateRepository distStateRepo;
 	
-	@Autowired private MockMvc mvc;
-	 
-	@Autowired private ObjectMapper mapper;
-	
 	/*
 	 * 시나리오
 	 * 4. 스트레스테스트
-	 * 		4_1) 뿌리기 설정 100번 (금액 : 1원~200만원, 유저수 : 1명 ~ 100명)
+	 * 		4_1) 뿌리기 / 뿌려진금액 할당받기 100회 반복 (금액 : 1원~200만원, 유저수 : 1명 ~ 100명)
 	 */
 	
 	@Test
-	@DisplayName("뿌리기 설정 100번 (금액 : 1원~200만원, 유저수 : 1명 ~ 100명)")
+	@DisplayName("뿌리기 / 뿌려진금액 할당받기 100회 반복 (금액 : 1원~200만원, 유저수 : 1명 ~ 100명)")
 	void 스트레스테스트4_1() throws Exception {
     	
 		// 100회 반복
@@ -60,6 +52,7 @@ public class Test4StressTest {
 			reqData.setCount(randomCnt); 
 			
 			String token = distService.setDistribute(roomId, masterUserId, reqData);
+			
 			assertThat(token.length()).isEqualTo(3);
 			// 뿌리기 셋팅 완료
 			
@@ -70,6 +63,8 @@ public class Test4StressTest {
 			for(int j=0; j < randomCnt; j++) {
 				userId = j;
 				cr = distService.getDistributedMoney(roomId, userId, token);
+				
+				/* 분배금액 할당 성공 */
 				assertThat(cr.getResult()).isEqualTo("Y");
 				
 				sumAmount += Long.parseLong((String) cr.getData());
