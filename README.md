@@ -14,7 +14,7 @@
 
 ### 1-2) 다수의 서버에 다수의 인스턴스로 동작하더라도 기능에 문제가 없도록 설계
  - 단톡방에서 사용하는 카카오페이 뿌리기 기능의 경우 동시성제어와 관련한 충돌발생 가능성이 낮다고 판단
-  > 수천 수백명이 모여있는 단톡방이 존재할 가능성과, 굉장히 근소한 차이로 트랜잭션을 발생시킬 가능성을 고려함
+   > 수천 수백명이 모여있는 단톡방이 존재할 가능성과, 굉장히 근소한 차이로 트랜잭션을 발생시킬 가능성을 고려함
  - JPA에서 제공하는 Optimisstic Lock(낙관적 잠금) 기능을 사용하여 동시성제어를 실현함
  - 데브옵스 관점에서 API Gateway를통한 엔드포인트 단일화, RabbitMQ 분산락 등을 고려해봄
  - kafka는 큐 내부에서 라운드로빈 방식으로 분산처리를 하기때문에 순서를 보장해주지 못하므로 고려대상에서 제외
@@ -32,8 +32,25 @@
  - 테이블생성 : JPA Entity를 통한 자동생성 사용 (spring.jpa.hibernate.ddl-auto=create)
 
 ## 3. API 명세
-### 3-1) 뿌리기 요청
+### 3-1) 뿌리기 API
  - URL
- > POST /remittance/distribute
+   > POST /remittance/distribute
  - Header
- > X-USER-ID (Integer), X-ROOM-ID (String)
+   > X-USER-ID (Integer), X-ROOM-ID (String)
+ - Body
+   > {"amount":"0", "count":"0"}
+
+### 3-2) 받기 API
+ - URL
+   > PUT /remittance/distribute/{:token}
+ - Header
+   > X-USER-ID (Integer), X-ROOM-ID (String)
+ - Body
+   > 없음
+### 3-3) 조회 API
+ - URL
+   > GET /remittance/distribute/{:token}
+ - Header
+   > X-USER-ID (Integer), X-ROOM-ID (String)
+ - Body
+   > 없음
